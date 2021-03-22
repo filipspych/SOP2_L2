@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS= -std=gnu99 -Wall -g 
 OUTPUT=a
-SOURCE=main.c
+SOURCE=main.c 
 
 
 all: 
