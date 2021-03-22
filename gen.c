@@ -22,6 +22,10 @@
 //         act.sa_flags=SA_SIGINFO; // todo zostawic?
 //         if (-1==sigaction(sigNo, &act, NULL)) ERR("sigaction");
 // }
+void usage(void){
+        fprintf(stderr,"USAGE: ./a q2 n \n");
+        exit(EXIT_FAILURE);
+}
 
 char rnd_char()
 {
@@ -30,7 +34,9 @@ char rnd_char()
 
 int main(int argc, char** argv)
 {
+    if (argc < 3) usage();
     char* q2_name = argv[1];
+    int n = atoi(argv[2]);
     srand(time(0));
     mqd_t q2;
     struct mq_attr attr;
@@ -39,13 +45,11 @@ int main(int argc, char** argv)
     if((q2=TEMP_FAILURE_RETRY(mq_open(q2_name, O_RDWR | O_EXCL | O_CREAT, 0600, &attr)))==(mqd_t)-1) ERR("mq open q2");
     
     char msg[MSG_SIZE+1];
-    char msg2[MSG_SIZE+1];
-    snprintf(msg, MSG_SIZE, "%d/%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char());
-    size_t msglen = strnlen(msg,MSG_SIZE);
-    
-    if(TEMP_FAILURE_RETRY(mq_send(q2,(const char*)&msg,msglen,0)))ERR("mq_send");
+    for (int i = 0; i < n; i++) {
+        snprintf(msg, MSG_SIZE, "%d/%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char());
+        size_t msglen = strnlen(msg,MSG_SIZE);
+        if(TEMP_FAILURE_RETRY(mq_send(q2,(const char*)&msg,msglen,0)))ERR("mq_send");
+    }
 
-    if(mq_receive(q2,(char*)&msg2,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
-    printf("Otrzymano: %s.\n",msg2);
     if(mq_close(q2) != 0) ERR("mq close");
 }
