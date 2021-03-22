@@ -45,6 +45,7 @@ int main(int argc, char** argv)
     
     if(TEMP_FAILURE_RETRY(mq_send(q2,(const char*)&msg,msglen,0)))ERR("mq_send");
 
+    if(mq_receive(q2,(char*)&msg2,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
     printf("Otrzymano: %s.\n",msg2);
     mq_close(q2);
 }
