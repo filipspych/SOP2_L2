@@ -32,24 +32,43 @@ char rnd_char()
     return rand()%('z'-'a') + 'a';
 }
 
+mqd_t createQueue(char *q_name)
+{
+    mqd_t q;
+    struct mq_attr attr;
+    attr.mq_maxmsg=MAX_MSG;
+    attr.mq_msgsize=MSG_SIZE;
+    if((q=TEMP_FAILURE_RETRY(mq_open(q_name, O_RDWR | O_EXCL | O_CREAT, 0600, &attr)))==(mqd_t)-1) ERR("mq open q2");
+    return q;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 3) usage();
     char* q2_name = argv[1];
-    int n = atoi(argv[2]);
+    char* q1_name = argv[2];
+    int n = atoi(argv[3]);
     srand(time(0));
-    mqd_t q2;
-    struct mq_attr attr;
-    attr.mq_maxmsg=MAX_MSG;
-    attr.mq_msgsize=MSG_SIZE;
-    if((q2=TEMP_FAILURE_RETRY(mq_open(q2_name, O_RDWR | O_EXCL | O_CREAT, 0600, &attr)))==(mqd_t)-1) ERR("mq open q2");
+    mqd_t q1 = createQueue(q1_name);
+    mqd_t q2 = createQueue(q2_name);
+
     
     char msg[MSG_SIZE+1];
     for (int i = 0; i < n; i++) {
         snprintf(msg, MSG_SIZE, "%d/%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char());
         size_t msglen = strnlen(msg,MSG_SIZE);
+        if(TEMP_FAILURE_RETRY(mq_send(q1,(const char*)&msg,msglen,0)))ERR("mq_send");
+        printf("gen: Wyslano: %s\n",msg);
+    }
+    
+    for (;;) {
+        if(mq_receive(q1,(char*)&msg,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
+        printf("gen: Otrzymano: %s\n",msg);
+        size_t msglen = strnlen(msg,MSG_SIZE);
+        if(TEMP_FAILURE_RETRY(mq_send(q1,(const char*)&msg,msglen,0)))ERR("mq_send");
         if(TEMP_FAILURE_RETRY(mq_send(q2,(const char*)&msg,msglen,0)))ERR("mq_send");
     }
+
 
     if(mq_close(q2) != 0) ERR("mq close");
 }

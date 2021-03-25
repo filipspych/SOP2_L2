@@ -35,8 +35,9 @@ char rnd_char()
 
 int main(int argc, char** argv)
 {
-    char* q2_name = argv[1];
     if (argc < 2) usage();
+    char* q2_name = argv[1];
+    
     mqd_t q2;
     struct mq_attr attr;
     attr.mq_maxmsg=MAX_MSG;
@@ -47,7 +48,7 @@ int main(int argc, char** argv)
 
     while(1){
         if(mq_receive(q2,(char*)&msg,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
-        printf("Otrzymano: %s\n",msg);
+        printf("proc: Otrzymano: %s\n",msg);
     }
 
     if(mq_close(q2) != 0) ERR("mq close");
