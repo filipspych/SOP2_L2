@@ -45,11 +45,6 @@ void usage(void){
         exit(EXIT_FAILURE);
 }
 
-char rnd_char()
-{
-    return rand()%('z'-'a') + 'a';
-}
-
 void msleep(UINT milisec) {
     time_t sec= (int)(milisec/1000);
     milisec = milisec - (sec*1000);
@@ -59,45 +54,70 @@ void msleep(UINT milisec) {
     if(nanosleep(&req,&req)) ERR("nanosleep");
 }
 
-void transformMsg(char *in, char *out, size_t buf_size)
-{
+void transformMsg(char *in, char *out, size_t buf_size){
     char buf1[MIDDLE_CHARS_COUNT + 1], buf2[LAST_CHARS_COUNT + 1];
     long pid;
     sscanf(in, "%ld/%s/%s", &pid, buf1, buf2);
     snprintf(out, buf_size, "%d/%s/%s", getpid(), "000", buf2);
+    printf("DEBUG: proc: Przeksztalcono do: %s\n", out);
 }
 
-int main(int argc, char** argv)
-{
-    if (argc != 4) usage();
-    unsigned int t = atoi(argv[1]);
-    unsigned int p = atoi(argv[1]);
-    char* q2_name = argv[3];
-    
-    if (t < 1 || t > 10) ERR("Wrong t param");
-    if (p < 0 || p > 100) ERR("Wrong p param");
-    
-    
-    mqd_t q2;
+int shouldPublish(int p){
+    int ret = rand()%100 < p;
+    printf("DEBUG: wylosowano %d\n", ret);
+    return ret;
+}
+
+mqd_t openQueue(const char* q_name){
+    mqd_t ret;
     struct mq_attr attr;
     attr.mq_maxmsg=MAX_MSG;
     attr.mq_msgsize=MSG_SIZE;
-    if((q2=TEMP_FAILURE_RETRY(mq_open(q2_name, O_RDWR, 0600, &attr)))==(mqd_t)-1) 
+    if((ret=TEMP_FAILURE_RETRY(mq_open(q_name, O_RDWR, 0600, &attr)))==(mqd_t)-1) 
     {
         if (errno == ENOENT) ERR("Such a queue does not exist!");
         ERR("mq open q2");
     }
+    return ret;
+}
+
+void receiveFromQueue(mqd_t q, char *msg) {
+    if(mq_receive(q,msg,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
+    printf("proc: Otrzymano: %s\n", msg);
+}
+
+void publishToQueue(mqd_t q, char *msg) {
+    size_t msglen = strnlen(msg,MSG_SIZE);
+    if(TEMP_FAILURE_RETRY(mq_send(q,(const char*)&msg,msglen,0)))ERR("mq_send");
+    printf("DEBUG: proc: Opublikowano: %s\n", msg);
+}
+
+
+int main(int argc, char** argv) {
+    if (argc != 4) usage();
+    unsigned int t = atoi(argv[1]);
+    unsigned int p = atoi(argv[2]);
+    char* q2_name = argv[3];
+    printf("DEBUG1\n");
+    if (t < 1 || t > 10) ERR("Wrong t param");
+    if (p < 0 || p > 100) ERR("Wrong p param");
+    srand(getpid());
+    mqd_t q2 = openQueue(q2_name);
+    printf("DEBUG2\n");
     
     char msgIn[MSG_SIZE+1];
     char msgOut[MSG_SIZE+1];
 
     while(1){
-        if(mq_receive(q2,(char*)&msgIn,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
+        printf("DEBUG3\n");
+        receiveFromQueue(q2, msgIn);
         msleep(t*1000);
-
-        transformMsg(msgIn, msgOut, MSG_SIZE+1);
-        printf("proc: Otrzymano: %s\n", msgIn);
-        printf("DEBUG: proc: Przeksztalcono do: %s\n", msgOut);
+        printf("DEBUG4\n");
+        if(shouldPublish(p)) {
+            printf("DEBUG5\n");
+            transformMsg(msgIn, msgOut, MSG_SIZE+1);
+            publishToQueue(q2, msgOut);
+        }        
     }
 
     if(mq_close(q2) != 0) ERR("mq close");

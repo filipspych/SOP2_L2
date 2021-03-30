@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     char* q2_name = argv[1];
     char* q1_name = argv[2];
     int n = atoi(argv[3]);
-    srand(time(0));
+    srand(getpid());
     mqd_t q1 = createQueue(q1_name);
     mqd_t q2 = createQueue(q2_name);
 
