@@ -82,14 +82,18 @@ mqd_t openQueue(const char* q_name){
 }
 
 void receiveFromQueue(mqd_t q, char *msg) {
-    if(mq_receive(q,msg,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
-    printf("proc: Otrzymano: %s\n", msg);
+        int len;
+        if((len = mq_receive(q,msg,MSG_SIZE+1,NULL))<1) ERR("mq_receive");
+        msg[len - 1]='\0';
+        printf("DEBUG: len = %d\n", len);
+        printf("proc: Otrzymano: %s\n", msg);
 }
 
-void publishToQueue(mqd_t q, char *msg) {
+void publishToQueue(mqd_t q, const char *msg) {
     size_t msglen = strnlen(msg,MSG_SIZE);
-    if(TEMP_FAILURE_RETRY(mq_send(q,(const char*)&msg,msglen,0)))ERR("mq_send");
-    printf("DEBUG: proc: Opublikowano: %s\n", msg);
+    printf("DEBUG: proc: Opublikowano 1: %s\n", msg);
+    if(TEMP_FAILURE_RETRY(mq_send(q,msg,msglen+1,0)))ERR("mq_send");
+    printf("DEBUG: proc: Opublikowano 2: %s\n", msg);
 }
 
 
@@ -117,7 +121,7 @@ int main(int argc, char** argv) {
             printf("DEBUG5\n");
             transformMsg(msgIn, msgOut, MSG_SIZE+1);
             publishToQueue(q2, msgOut);
-        }        
+        } else printf("DEBUG: nie publikujemy\n");       
     }
 
     if(mq_close(q2) != 0) ERR("mq close");
