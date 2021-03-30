@@ -27,7 +27,7 @@
 //         if (-1==sigaction(sigNo, &act, NULL)) ERR("sigaction");
 // }
 void usage(void){
-        fprintf(stderr,"USAGE: ./a q2 n \n");
+        fprintf(stderr,"This is the generator.\nUSAGE: ./a q1 q2 n \n");
         exit(EXIT_FAILURE);
 }
 
@@ -48,7 +48,7 @@ mqd_t createQueue(char *q_name)
 
 int main(int argc, char** argv)
 {
-    if (argc < 3) usage();
+    if (argc != 4) usage();
     char* q2_name = argv[1];
     char* q1_name = argv[2];
     int n = atoi(argv[3]);
@@ -59,7 +59,8 @@ int main(int argc, char** argv)
     
     char msg[MSG_SIZE+1];
     for (int i = 0; i < n; i++) {
-        snprintf(msg, MSG_SIZE, "%d/%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char());
+        snprintf(msg, MSG_SIZE, "%d/%c%c%c/%c%c%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char(),
+                                    rnd_char(),rnd_char(),rnd_char(),rnd_char(),rnd_char());
         size_t msglen = strnlen(msg,MSG_SIZE);
         if(TEMP_FAILURE_RETRY(mq_send(q1,(const char*)&msg,msglen,0)))ERR("mq_send");
         printf("gen: Wyslano: %s\n",msg);
