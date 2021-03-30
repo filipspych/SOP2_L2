@@ -1,1 +1,5 @@
-main
+*
+!gen.c
+!Makefile
+!proc.c
+!.vscode/*
