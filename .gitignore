@@ -3,3 +3,4 @@
 !Makefile
 !proc.c
 !.vscode/*
+!.gitignore
