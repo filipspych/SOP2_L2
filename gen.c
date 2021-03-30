@@ -1,3 +1,7 @@
+//Oświadczam, że niniejsza praca stanowiąca podstawę do uznania osiągnięcia efektów
+//uczenia się z przedmiotu SOP2 została wykonana przeze mnie samodzielnie.
+//Filip Spychala
+//305797
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
