@@ -59,12 +59,12 @@ void transformMsg(char *in, char *out, size_t buf_size){
     long pid;
     sscanf(in, "%ld/%s/%s", &pid, buf1, buf2);
     snprintf(out, buf_size, "%d/%s/%s", getpid(), "000", buf2);
-    printf("DEBUG: proc: Przeksztalcono do: %s\n", out);
+    //printf("DEBUG: proc: Przeksztalcono do: %s\n", out);
 }
 
 int shouldPublish(int p){
     int ret = rand()%100 < p;
-    printf("DEBUG: wylosowano %d\n", ret);
+    //printf("DEBUG: wylosowano %d\n", ret);
     return ret;
 }
 
@@ -81,48 +81,66 @@ mqd_t openQueue(const char* q_name){
     return ret;
 }
 
-void receiveFromQueue(mqd_t q, char *msg) {
-        int len;
-        if((len = mq_receive(q,msg,MSG_SIZE+1,NULL))<1) ERR("mq_receive");
-        msg[len - 1]='\0';
-        printf("DEBUG: len = %d\n", len);
-        printf("proc: Otrzymano: %s\n", msg);
+int receiveFromQueue(mqd_t q, char *msg, int timeout){
+    int milisec = 1000*timeout;
+    time_t sec= (int)(milisec/1000);
+    milisec = milisec - (sec*1000);
+    timespec_t req= {0};
+    req.tv_sec = sec;
+    req.tv_nsec = milisec * 1000000L;
+    int len;
+
+    if ((len = mq_timedreceive(q, msg, MSG_SIZE + 1, NULL, &req)) < 1) {
+        if (errno == ETIMEDOUT) return 1;
+        ERR("timed_receive");
+    }
+    msg[len - 1] = '\0';
+    //printf("DEBUG: len = %d\n", len);
+    return 0;
 }
 
 void publishToQueue(mqd_t q, const char *msg) {
     size_t msglen = strnlen(msg,MSG_SIZE);
-    printf("DEBUG: proc: Opublikowano 1: %s\n", msg);
+    //printf("DEBUG: proc: Opublikowano 1: %s\n", msg);
     if(TEMP_FAILURE_RETRY(mq_send(q,msg,msglen+1,0)))ERR("mq_send");
-    printf("DEBUG: proc: Opublikowano 2: %s\n", msg);
+    //printf("DEBUG: proc: Opublikowano 2: %s\n", msg);
 }
 
+void work(mqd_t q, int t, int p) {
+    char msgIn[MSG_SIZE+1] = "BRAK PIERWSZEJ WIADOMOSCI";
+    char msgOut[MSG_SIZE+1];
+    int offended = 0;
+
+    while(1){
+        //printf("DEBUG3\n");
+        if(receiveFromQueue(q, msgIn, (offended==0)) == 1) {
+            offended = 1;
+        } else offended = 0;
+        printf("proc: Otrzymano: %s\n", msgIn);
+        msleep(t*1000);
+        //printf("DEBUG4\n");
+        if(shouldPublish(p) && (offended == 0)) {
+            //printf("DEBUG5\n");
+            transformMsg(msgIn, msgOut, MSG_SIZE+1);
+            publishToQueue(q, msgOut);
+        } 
+        //else printf("DEBUG: nie publikujemy\n");       
+    }
+}
 
 int main(int argc, char** argv) {
     if (argc != 4) usage();
     unsigned int t = atoi(argv[1]);
     unsigned int p = atoi(argv[2]);
     char* q2_name = argv[3];
-    printf("DEBUG1\n");
+    //printf("DEBUG1\n");
     if (t < 1 || t > 10) ERR("Wrong t param");
     if (p < 0 || p > 100) ERR("Wrong p param");
     srand(getpid());
     mqd_t q2 = openQueue(q2_name);
-    printf("DEBUG2\n");
+    //printf("DEBUG2\n");
     
-    char msgIn[MSG_SIZE+1];
-    char msgOut[MSG_SIZE+1];
-
-    while(1){
-        printf("DEBUG3\n");
-        receiveFromQueue(q2, msgIn);
-        msleep(t*1000);
-        printf("DEBUG4\n");
-        if(shouldPublish(p)) {
-            printf("DEBUG5\n");
-            transformMsg(msgIn, msgOut, MSG_SIZE+1);
-            publishToQueue(q2, msgOut);
-        } else printf("DEBUG: nie publikujemy\n");       
-    }
+    work(q2, t, p);
 
     if(mq_close(q2) != 0) ERR("mq close");
 }

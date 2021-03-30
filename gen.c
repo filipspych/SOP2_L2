@@ -66,7 +66,7 @@ mqd_t connectWithQueue(char *q_name) {
 size_t genShort(char *msg)
 {
     snprintf(msg, MSG_SIZE, "%d/%c%c%c", getpid(), rnd_char(),rnd_char(),rnd_char());
-    printf("DEBUG: wygenerowano short: %s\n", msg);
+    //printf("DEBUG: wygenerowano short: %s\n", msg);
     return strnlen(msg,MSG_SIZE);
 }
 
@@ -77,7 +77,7 @@ size_t genLong(char *msg, char *prevMsg)
     sscanf(prevMsg, "%ld/%s", &ignore, buf);
     snprintf(msg, MSG_SIZE, "%d/%s/%c%c%c%c%c", getpid(), buf,
                     rnd_char(),rnd_char(),rnd_char(),rnd_char(),rnd_char());
-    printf("DEBUG: wygenerowano long: %s\n", msg);
+    //printf("DEBUG: wygenerowano long: %s\n", msg);
     return strnlen(msg,MSG_SIZE);
 }
 
@@ -87,20 +87,22 @@ void work(int n, int p, int t, mqd_t q1, mqd_t q2)
     for (int i = 0; i < n; i++) {
         size_t msglen = genShort(msg);
         if(TEMP_FAILURE_RETRY(mq_send(q1,msg,msglen,0)))ERR("mq_send");
-        printf("DEBUG: gen: Wyslano: %s\n",msg);
+        printf("DEBUG: gen: Wyslano na q1: %s\n",msg);
     }
     
     for (;;) {
         if(mq_receive(q1,msg,MSG_SIZE+1,NULL)<1) ERR("mq_receive");
-        printf("DEBUG: gen: Otrzymano: %s\n",msg);
+        //printf("DEBUG: gen: Otrzymano: %s\n",msg);
         msleep(t*1000);
         if(shouldPublish(p)) {
-            size_t msglen = strnlen(msg,MSG_SIZE);
             genLong(msg2, msg);
             size_t msg2len = strnlen(msg2,MSG_SIZE);
             if(TEMP_FAILURE_RETRY(mq_send(q2,msg2,msg2len+1,1)))ERR("mq_send");
-            if(TEMP_FAILURE_RETRY(mq_send(q1,msg,msglen+1,1)))ERR("mq_send");
+            printf("DEBUG: gen: Wyslano na q2: %s\n",msg2);
         }
+        size_t msglen = strnlen(msg,MSG_SIZE);
+        if(TEMP_FAILURE_RETRY(mq_send(q1,msg,msglen+1,1)))ERR("mq_send");
+        printf("DEBUG: gen: Wyslano na q1: %s\n",msg);
     }
 }
 
